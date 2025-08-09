@@ -1,0 +1,50 @@
+name: 构建 iOS/tvOS 应用
+
+# 只在手动触发时运行
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '构建类型'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - iOS
+          - tvOS
+
+jobs:
+  build:
+    name: 构建 ${{ matrix.platform }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - platform: iOS
+            scheme: Moonlight
+            sdk: iphonesimulator
+          - platform: tvOS
+            scheme: Moonlight TV
+            sdk: appletvsimulator
+    # 根据输入的构建类型过滤任务
+    if: ${{ github.event.inputs.build_type == 'all' || github.event.inputs.build_type == matrix.platform }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    
+    - name: 设置 Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: 下载平台 SDK
+      run: xcodebuild -downloadPlatform ${{ matrix.platform }}
+    
+    - name: 构建 Debug 版本
+      run: xcodebuild -project Moonlight.xcodeproj -scheme "${{ matrix.scheme }}" -configuration Debug -sdk ${{ matrix.sdk }} clean build
+    
+    - name: 构建 Release 版本
+      run: xcodebuild -project Moonlight.xcodeproj -scheme "${{ matrix.scheme }}" -configuration Release -sdk ${{ matrix.sdk }} clean build
